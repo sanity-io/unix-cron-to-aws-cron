@@ -1,12 +1,110 @@
 /**
+ * @typedef {Object} CronObject
+ * @property {string} minute - Minute field (0-59, *, ranges, lists, intervals)
+ * @property {string} hour - Hour field (0-23, *, ranges, lists, intervals)  
+ * @property {string} dayOfMonth - Day of month field (1-31, *, ranges, lists, intervals)
+ * @property {string} month - Month field (1-12, *, ranges, lists, intervals)
+ * @property {string} dayOfWeek - Day of week field (0-7, *, ranges, lists, intervals)
+ * @property {string} [year] - Optional year field (overrides second parameter)
+ */
+
+/**
  * Converts a standard Unix crontab expression to AWS EventBridge cron format
+ * 
+ * @param {string|CronObject} input - Unix cron string or object with cron fields
+ * @param {string|number} [year='*'] - Year field for AWS (default: '*' for all years)
+ * @returns {string} AWS EventBridge compatible cron expression
+ * @throws {Error} If the input cron expression is invalid
+ */
+export default function convertUnixToAwsCron(input, year = '*') {
+  // Input type detection and routing
+  if (typeof input === 'string') {
+    return processStringInput(input, year)
+  } else if (typeof input === 'object' && input !== null && !Array.isArray(input)) {
+    return processObjectInput(input, year)
+  } else {
+    // Validation for invalid input types
+    const inputType = input === null ? 'null' : Array.isArray(input) ? 'array' : typeof input
+    throw new Error(`Input must be a string or object, received: ${inputType}`)
+  }
+}
+
+/**
+ * Validates a cron object to ensure it has all required properties with correct types
+ * 
+ * @param {Object} cronObj - Object to validate as cron input
+ * @throws {Error} If the object is missing required fields or has invalid field types
+ */
+function validateCronObject(cronObj) {
+  const requiredFields = ['minute', 'hour', 'dayOfMonth', 'month', 'dayOfWeek']
+  const missingFields = []
+  const invalidTypeFields = []
+
+  // Check for missing required fields
+  for (const field of requiredFields) {
+    if (!(field in cronObj)) {
+      missingFields.push(field)
+    } else if (typeof cronObj[field] !== 'string') {
+      invalidTypeFields.push(field)
+    }
+  }
+
+  // Report missing required fields
+  if (missingFields.length > 0) {
+    throw new Error(`Missing required cron fields: ${missingFields.join(', ')}`)
+  }
+
+  // Report invalid field types
+  if (invalidTypeFields.length > 0) {
+    const fieldDetails = invalidTypeFields.map(field => 
+      `${field} (received ${typeof cronObj[field]})`
+    ).join(', ')
+    throw new Error(`All cron fields must be strings. Invalid fields: ${fieldDetails}`)
+  }
+
+  // Validate optional year field if present
+  if ('year' in cronObj && typeof cronObj.year !== 'string') {
+    throw new Error(`Year field must be a string if provided (received ${typeof cronObj.year})`)
+  }
+}
+
+/**
+ * Processes object input for Unix cron conversion
+ * 
+ * @param {CronObject} cronObj - Object with cron field properties
+ * @param {string|number} [year='*'] - Year field for AWS (default: '*' for all years)
+ * @returns {string} AWS EventBridge compatible cron expression
+ * @throws {Error} If the input cron object is invalid
+ */
+function processObjectInput(cronObj, year = '*') {
+  // Validate the cron object
+  validateCronObject(cronObj)
+  
+  // Handle year parameter precedence - object property takes priority
+  let effectiveYear = year
+  if ('year' in cronObj) {
+    if (year !== '*' && cronObj.year !== year.toString()) {
+      console.warn('Year specified in both object property and parameter. Using object property value.')
+    }
+    effectiveYear = cronObj.year
+  }
+  
+  // Extract cron fields from object and construct string representation
+  const unixCronString = `${cronObj.minute} ${cronObj.hour} ${cronObj.dayOfMonth} ${cronObj.month} ${cronObj.dayOfWeek}`
+  
+  // Reuse existing string processing logic
+  return processStringInput(unixCronString, effectiveYear)
+}
+
+/**
+ * Processes string input for Unix cron conversion
  * 
  * @param {string} unixCron - Standard 5-field Unix crontab expression
  * @param {string|number} [year='*'] - Year field for AWS (default: '*' for all years)
  * @returns {string} AWS EventBridge compatible cron expression
  * @throws {Error} If the input cron expression is invalid
  */
-export default function convertUnixToAwsCron(unixCron, year = '*') {
+function processStringInput(unixCron, year = '*') {
   // Validate input
   if (typeof unixCron !== 'string') {
     throw new Error('Cron expression must be a string')
