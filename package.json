@@ -1,0 +1,7 @@
+{
+  "name": "@sanity/unix-cron-to-aws-cron",
+  "type": "module",
+  "scripts": {
+    "test": "node test"
+  }
+}
