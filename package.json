@@ -6,6 +6,9 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "test": "node test"
+    "test": "node test",
+    "patch": "npm version patch && git push origin main --tags",
+    "minor": "npm version minor && git push origin main --tags",
+    "major": "npm version major && git push origin main --tags"
   }
 }
