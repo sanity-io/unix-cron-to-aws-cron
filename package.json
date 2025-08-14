@@ -1,6 +1,10 @@
 {
   "name": "@sanity/unix-cron-to-aws-cron",
+  "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "test": "node test"
   }
